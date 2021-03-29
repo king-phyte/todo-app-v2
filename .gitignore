@@ -127,3 +127,7 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Stuff I don't want in
+Project.md
+reference.py
