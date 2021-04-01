@@ -193,7 +193,6 @@ class MainWindow(QMainWindow):
                 due_date = None
                 reminder = False
             to_do_data = {"text": user_input, "priority": priority, "due_date": due_date, "reminder": reminder}
-            # todo = ToDo(**to_do_data)
 
             if not add_todo(to_do_data):
                 print("Unable to add to-do!")
