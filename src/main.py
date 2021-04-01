@@ -1,28 +1,12 @@
 import sys
 import os
-import json
 from PyQt5.QtWidgets import QApplication, QMenuBar, QAction, QFrame, QVBoxLayout, QHBoxLayout, QLineEdit, QMainWindow, \
-    QSplitter, QGroupBox, QPushButton, QLabel, QStackedWidget, QScrollArea, QComboBox, QCheckBox, \
+    QSplitter, QGroupBox, QPushButton, QLabel, QScrollArea, QComboBox, QCheckBox, \
     QGraphicsOpacityEffect, QGridLayout, QDialog, QDateTimeEdit, QRadioButton
-from PyQt5.QtCore import QCoreApplication, Qt, QDate, QDateTime
+from PyQt5.QtCore import QCoreApplication, Qt, QDateTime
 from PyQt5.QtGui import QGuiApplication, QIcon, QFont
-from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass
+from typing import List, Tuple
 import sqlite3
-
-
-# @dataclass
-# class ToDo:
-#     text: str
-#     priority: int
-#     due_date: Optional[str]
-#     reminder: bool
-#
-#     def __str__(self) -> str:
-#         return self.text
-#
-#     def __repr__(self) -> str:
-#         return self.text
 
 
 # Currently being used as a temporary memory to hold the values of returned by the "Set Date" feature
@@ -30,40 +14,10 @@ import sqlite3
 temp: dict
 
 
-def get_selected_date(data) -> None:
+def get_selected_date(data: dict) -> None:
     global temp
     temp = data
 
-
-# def save_user_input(**kwargs) -> bool:
-#     if "user_input" in kwargs:
-#         todo = kwargs["user_input"]
-#     if "priority" in kwargs:
-#         priority = kwargs["priority"]
-#     if "status" in kwargs:
-#         status = kwargs["status"]
-#
-#     user_input = {
-#         "to-do": todo,
-#         "due-date": None,
-#         "reminder": False,
-#         "priority": priority,
-#         "status": status
-#     }
-#
-#     if not os.path.isfile("./list.json"):
-#         user_input = [user_input]
-#         with open("./list.json", "w") as f:
-#             json.dump(user_input, f, indent=4)
-#
-#     else:
-#         with open("./list.json") as f:
-#             feed = json.load(f)
-#             feed.append(user_input)
-#
-#         with open("./list.json", "w") as f:
-#             json.dump(feed, f, indent=4)
-#     return True
 
 def access_database() -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
     try:
@@ -71,10 +25,7 @@ def access_database() -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
             print("No database found. Creating a new one")
             connection = sqlite3.connect("./journal.db")
             cursor = connection.cursor()
-
-            cursor.execute("""
-                CREATE TABLE todo(text, priority, due_date, reminder)
-            """)
+            cursor.execute("CREATE TABLE todo(text, priority, due_date, reminder)")
         else:
             connection = sqlite3.connect("./journal.db")
             cursor = connection.cursor()
@@ -85,12 +36,10 @@ def access_database() -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
         print(e)
 
 
-def save_to_database(todo) -> bool:
+def save_to_database(todo: dict) -> bool:
     try:
         connection, cursor = access_database()
-        cursor.execute("""
-            INSERT INTO todo VALUES (?, ?, ?, ?)
-        """, tuple(todo.values()))
+        cursor.execute("INSERT INTO todo VALUES (?, ?, ?, ?)", tuple(todo.values()))
         connection.commit()
         connection.close()
         return True
@@ -115,18 +64,18 @@ def load_existing_todos() -> List[dict]:
         print(e)
 
 
-def delete_todo_from_database(todo) -> bool:
+def delete_todo_from_database(todo: dict) -> bool:
     try:
         connection, cursor = access_database()
         cursor.execute("DELETE FROM todo WHERE text=?", (todo["text"], ))
         connection.commit()
-        print(cursor.rowcount)
         cursor.close()
         connection.close()
         return True
     except sqlite3.Error as e:
         print(e)
     return False
+
 
 class MainWindow(QMainWindow):
     def __init__(self) -> None:
@@ -135,11 +84,11 @@ class MainWindow(QMainWindow):
         self.menu_bar = QMenuBar()
         self.window_title = "To-Do"
         self.init_ui()
-        self.calculate_splitter_ratio()
+        self.maintain_splitter_ratio()
 
     def init_ui(self) -> None:
         QCoreApplication.setApplicationName("To-Do")
-        QCoreApplication.setApplicationVersion("0.0.1")
+        QCoreApplication.setApplicationVersion("0.0.4")
         QCoreApplication.setOrganizationName("King Inc.")
         QGuiApplication.setFallbackSessionManagementEnabled(False)
 
@@ -148,7 +97,6 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(width, height)
         self.create_menu_bar()
         self.create_main_area()
-
         self.show()
 
     def create_menu_bar(self) -> None:
@@ -167,10 +115,10 @@ class MainWindow(QMainWindow):
 
     def create_main_area(self) -> None:
         self.splitter = QSplitter(Qt.Vertical, self)
-        self.splitter.splitterMoved.connect(self.calculate_splitter_ratio)
+        self.splitter.splitterMoved.connect(self.maintain_splitter_ratio)
 
-        self.input_frame = QFrame(self.splitter)
-        self.input_frame.setFrameShape(QFrame.StyledPanel)
+        input_frame = QFrame(self.splitter)
+        input_frame.setFrameShape(QFrame.StyledPanel)
 
         def toggle_input_options() -> None:
             group_2_in_input_frame.show() if group_2_in_input_frame.isHidden() else group_2_in_input_frame.hide()
@@ -184,18 +132,8 @@ class MainWindow(QMainWindow):
             group_box.setGraphicsEffect(opacity)
 
         def delete_todo(group_box: QGroupBox, _todo: dict) -> None:
-            # with open("./list.json") as f:
-            #     feed = json.load(f)
-            # print(feed)
-            #
-            # for todo in feed:
-            #     som = todo["to-do"]
-            #     if som == todo:
-            #         feed.pop(feed.index(todo))
-            #
-            # if not feed:
-            #     os.remove("./list.json")
-            delete_todo_from_database(_todo)
+            if not delete_todo_from_database(_todo):
+                print("Unable to delete todo from database.")
 
             group_box.deleteLater()
             input_box.setFocus()
@@ -266,15 +204,15 @@ class MainWindow(QMainWindow):
                 print("Unable to save todo to database")
                 ...
 
-        input_box = QLineEdit(self.input_frame)
+        input_box = QLineEdit(input_frame)
         input_box.setPlaceholderText("Add a todo ...")
         input_box.returnPressed.connect(process_input)
-        add_todo_button = QPushButton("Add", self.input_frame)
+        add_todo_button = QPushButton("Add", input_frame)
         add_todo_button.clicked.connect(process_input)
-        more_button = QPushButton(">", self.input_frame)
+        more_button = QPushButton("...", input_frame)
         more_button.clicked.connect(toggle_input_options)
 
-        group_1_in_input_frame = QGroupBox(self.input_frame)
+        group_1_in_input_frame = QGroupBox(input_frame)
 
         horizontal_layout_1_in_input_frame = QHBoxLayout(group_1_in_input_frame)
         horizontal_layout_1_in_input_frame.addWidget(input_box)
@@ -316,13 +254,13 @@ class MainWindow(QMainWindow):
 
             due_date_window.accepted.connect(lambda: get_selected_date(
                 {"due_date": date_and_time.dateTime().toString("dd/MMM/yy | HH:MM"),
-                 "reminder": reminder_radio_on.isChecked()}
-            ))
+                 "reminder": reminder_radio_on.isChecked()
+                 }))
             due_date_window.exec()
 
         priority_options = ("None", "Low", "Medium", "High")
 
-        group_2_in_input_frame = QGroupBox(self.input_frame)
+        group_2_in_input_frame = QGroupBox(input_frame)
         set_due_date_button = QPushButton("Set Due Date")
         set_due_date_button.clicked.connect(set_due_date)
         priorities_combobox = QComboBox(group_2_in_input_frame)
@@ -334,19 +272,19 @@ class MainWindow(QMainWindow):
         horizontal_layout_2_in_input_frame.addWidget(priorities_combobox)
         horizontal_layout_2_in_input_frame.addWidget(set_due_date_button)
 
-        input_frame_layout = QVBoxLayout(self.input_frame)
+        input_frame_layout = QVBoxLayout(input_frame)
         input_frame_layout.addWidget(group_1_in_input_frame)
         input_frame_layout.addWidget(group_2_in_input_frame)
 
-        self.display_frame = QFrame()
-        self.display_frame.setStyleSheet("background: #fff")
-        self.display_frame.setFrameShape(QFrame.StyledPanel)
+        display_frame = QFrame()
+        display_frame.setStyleSheet("background: #fff")
+        display_frame.setFrameShape(QFrame.StyledPanel)
 
-        display_frame_layout = QVBoxLayout(self.display_frame)
+        display_frame_layout = QVBoxLayout(display_frame)
         display_frame_layout.setAlignment(Qt.AlignTop)
 
         scroll_area = QScrollArea(self.splitter)
-        scroll_area.setWidget(self.display_frame)
+        scroll_area.setWidget(display_frame)
         scroll_area.setWidgetResizable(True)
 
         previous_todos = load_existing_todos()
@@ -360,7 +298,7 @@ class MainWindow(QMainWindow):
         print("Showing info")
         ...
 
-    def calculate_splitter_ratio(self) -> None:
+    def maintain_splitter_ratio(self) -> None:
         top, bottom = self.splitter.sizes()
         total = top + bottom
         new_top = total // 5
